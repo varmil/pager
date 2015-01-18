@@ -46,15 +46,14 @@ React.render(<PagerDemo />, document.body);
 
 ## How it looks like*
 ```
-First | Prev | ... | 6 | 7 | 8 | 9 | ... | Next | Last
+1 | ... | 7 | 8 | 9 | ...
 ```
 
 \* Bootstrap 3.0 is required by default, but you can replace it with your own css.
 
 
-## Demo
-* [JSFiddle](http://jsfiddle.net/azaviruha/kb3gN/8573/)
-* [Local](https://github.com/AZaviruha/demo-master-detail)
+## Demo (varmil version)
+* [JSFiddle](http://jsfiddle.net/kb3gN/9043/)
 
 
 ## Tests
