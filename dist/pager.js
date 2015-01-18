@@ -13,7 +13,7 @@
  *
  * ## How it looks like
  * ```
- * First | Prev | ... | 6 | 7 | 8 | 9 | ... | Next | Last
+ * 1 | ... | 6 | 7 | 8 | 9 | ...
  * ```
  *
  */
@@ -24,8 +24,8 @@ var React = require( 'react' );
 /**
  * ## Constants
  */
-var BASE_SHIFT  = 0
-  , TITLE_SHIFT = 1;
+var FIRST_PAGE  = 1;
+var BASE_SHIFT  = 2;
 
 
 /**
@@ -35,41 +35,26 @@ var Pager = React.createClass({displayName: 'Pager',
     propTypes: {
         current:               React.PropTypes.number.isRequired,
         total:                 React.PropTypes.number.isRequired,
-        visiblePages:       React.PropTypes.number.isRequired,
+        visiblePages:          React.PropTypes.number.isRequired,
 
         onPageChanged:         React.PropTypes.func,
         onPageSizeChanged:     React.PropTypes.func
     },
-    
+
 
     /* ========================= HANDLERS =============================*/
     handleFirstPage: function () {
         if ( this.isPrevDisabled() ) return;
-        this.handlePageChanged( BASE_SHIFT );
-    },
-    
-    handlePreviousPage: function () {
-        if ( this.isPrevDisabled() ) return;
-        this.handlePageChanged( this.props.current - TITLE_SHIFT );
+        this.handlePageChanged( FIRST_PAGE );
     },
 
-    handleNextPage: function () {
-        if ( this.isNextDisabled() ) return;
-        this.handlePageChanged( this.props.current + TITLE_SHIFT );
-    },
-
-    handleLastPage: function () {
-        if ( this.isNextDisabled() ) return;
-        this.handlePageChanged( this.props.total - TITLE_SHIFT );
-    },
-    
     /**
      * Chooses page, that is one before min of currently visible
      * pages.
      */
     handleMorePrevPages: function () {
         var blocks = this.calcBlocks();
-        this.handlePageChanged( blocks.current * blocks.size - TITLE_SHIFT );
+        this.handlePageChanged( Math.max(this.props.current - blocks.size, BASE_SHIFT) );
     },
 
     /**
@@ -78,14 +63,14 @@ var Pager = React.createClass({displayName: 'Pager',
      */
     handleMoreNextPages: function () {
         var blocks = this.calcBlocks();
-        this.handlePageChanged( (blocks.current + TITLE_SHIFT) * blocks.size );
+        this.handlePageChanged( Math.min(this.props.current + blocks.size, this.props.total) );
     },
 
     handlePageChanged: function ( el ) {
         var handler = this.props.onPageChanged;
         if ( handler ) handler( el );
     },
-    
+
 
     /* ========================= HELPERS ==============================*/
     /**
@@ -95,11 +80,11 @@ var Pager = React.createClass({displayName: 'Pager',
         var props      = this.props
           , total      = props.total
           , blockSize  = props.visiblePages
-          , current    = props.current + TITLE_SHIFT
+          , current    = props.current
 
-          , blocks     = Math.ceil( total / blockSize ) 
-          , currBlock  = Math.ceil( current / blockSize ) - TITLE_SHIFT;
-        
+          , blocks     = Math.ceil( total / blockSize )
+          , currBlock  = Math.ceil( current / blockSize );
+
         return {
             total:    blocks,
             current:  currBlock,
@@ -108,62 +93,46 @@ var Pager = React.createClass({displayName: 'Pager',
     },
 
     isPrevDisabled: function () {
-        return this.props.current <= BASE_SHIFT;
-    },
-
-    isNextDisabled: function () {
-        return this.props.current >= ( this.props.total - TITLE_SHIFT );
+        return this.props.current === FIRST_PAGE;
     },
 
     isPrevMoreHidden: function () {
         var blocks = this.calcBlocks();
-        return ( blocks.total === TITLE_SHIFT ) 
-               || ( blocks.current === BASE_SHIFT );
+        return this.props.current <= BASE_SHIFT;
     },
 
     isNextMoreHidden: function () {
         var blocks = this.calcBlocks();
-        return ( blocks.total === TITLE_SHIFT ) 
-               || ( blocks.current === (blocks.total - TITLE_SHIFT) );
+        return (this.props.current === this.props.total)
+            || (this.props.total - this.props.current < blocks.size);
     },
 
     visibleRange: function () {
         var blocks  = this.calcBlocks()
-          , start   = blocks.current * blocks.size
+          , start   = Math.max(FIRST_PAGE, Math.min(this.props.current, this.props.total - (blocks.size - 1)))
           , delta   = this.props.total - start
-          , end     = start + ( (delta > blocks.size) ? blocks.size : delta );
-        return [ start + TITLE_SHIFT, end + TITLE_SHIFT ];
+          , end     = start + ( (delta >= blocks.size) ? blocks.size - 1 : delta );
+        return [ start, end ];
     },
 
-    
+
     /* ========================= RENDERS ==============================*/
     render: function () {
+        var self = this;
         return (
-            React.createElement("nav", null, 
-                React.createElement("ul", {className: "pagination"}, 
-                    React.createElement(Page, {className: "btn-first-page", 
-                          isDisabled: this.isPrevDisabled(), 
-                          onClick: this.handleFirstPage}, 'First'), 
+            React.createElement("nav", null,
+                React.createElement("ul", {className: "pagination"},
+                    React.createElement(Page, {className: "btn-first-page",
+                          isActive: (self.props.current === FIRST_PAGE),
+                          onClick: this.handleFirstPage}, '1'),
 
-                    React.createElement(Page, {className: "btn-prev-page", 
-                          isDisabled: this.isPrevDisabled(), 
-                          onClick: this.handlePreviousPage}, '\u00AB'), 
+                    React.createElement(Page, {isHidden: this.isPrevMoreHidden(),
+                          onClick: this.handleMorePrevPages}, "..."),
 
-                    React.createElement(Page, {isHidden: this.isPrevMoreHidden(), 
-                          onClick: this.handleMorePrevPages}, "..."), 
+                    this.renderPages( this.visibleRange()),
 
-                    this.renderPages( this.visibleRange()), 
-
-                    React.createElement(Page, {isHidden: this.isNextMoreHidden(), 
-                          onClick: this.handleMoreNextPages}, "..."), 
-
-                    React.createElement(Page, {className: "btn-next-page", 
-                          isDisabled: this.isNextDisabled(), 
-                          onClick: this.handleNextPage}, '\u00BB'), 
-
-                    React.createElement(Page, {className: "btn-last-page", 
-                          isDisabled: this.isNextDisabled(), 
-                          onClick: this.handleLastPage}, 'Last')
+                    React.createElement(Page, {isHidden: this.isNextMoreHidden(),
+                          onClick: this.handleMoreNextPages}, "...")
                 )
             )
         );
@@ -178,14 +147,17 @@ var Pager = React.createClass({displayName: 'Pager',
      */
     renderPages: function ( pair ) {
         var self = this;
-        
-        return range( pair[0], pair[1] ).map(function ( el, idx ) {
-            var current = el - TITLE_SHIFT
+
+        return range( pair[0], pair[1] + 1 ).map(function ( el, idx ) {
+            var current = el
               , onClick = self.handlePageChanged.bind(null, current)
               , isActive = (self.props.current === current);
 
-            return (React.createElement(Page, {key: idx, isActive: isActive, 
-                          className: "btn-numbered-page", 
+            // First Page is rendered with another special process.
+            if (el === FIRST_PAGE) return;
+
+            return (React.createElement(Page, {key: idx, isActive: isActive,
+                          className: "btn-numbered-page",
                           onClick: onClick}, el));
         });
     }
@@ -204,12 +176,12 @@ var Page = React.createClass({displayName: 'Page',
                       + (props.isDisabled ? ' disabled' : '');
 
         return (
-            React.createElement("li", {key: this.props.key, className: css}, 
+            React.createElement("li", {key: this.props.key, className: css},
                 React.createElement("a", {onClick: this.props.onClick}, this.props.children)
             )
         );
     }
-});    
+});
 
 
 
@@ -219,7 +191,7 @@ function range ( start, end ) {
         res.push( i );
     }
 
-    return res; 
+    return res;
 }
 
 module.exports = Pager;
